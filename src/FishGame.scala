@@ -33,8 +33,6 @@ object FishGame {
   case object W extends Direction
 
   case class Board(w:Int, h:Int, positionStates:Map[Position, PositionState]) {
-//    private val players : List[(Player, List[Position])]
-
     override def toString = positionStates.toList.sortBy(t=>(t._1.x + t._1.y * h)).map(_._2)
       .grouped(w).map(_.mkString)
       .mkString("\n")
@@ -60,6 +58,7 @@ object FishGame {
       else
         error("Cannot move to " + dest + " as it is not available " + posStateFor(b, dest))
     }
+
 
     def isFree(b:Board, pos:Position) : Boolean =
       posStateFor(b, pos) match {
