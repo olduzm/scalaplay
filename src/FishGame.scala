@@ -36,6 +36,9 @@ object FishGame {
     override def toString = positionStates.toList.sortBy(t=>(t._1.x + t._1.y * h)).map(_._2)
       .grouped(w).map(_.mkString)
       .mkString("\n")
+
+    def positionsForPlayer(player:Player) : List[Position] =
+      positionStates.toList.filter((pair) => Board.playerAt(this, pair._1) == Some(player)).map(_._1)
   }
 
   object Board {
@@ -45,10 +48,10 @@ object FishGame {
       Board(w, h, players.foldLeft(initialMap)(addPenguinsToMap(_, _)))
     }
 
-    def playerAt(b:Board, orig:Position) : Player = {
+    def playerAt(b:Board, orig:Position) : Option[Player] = {
       posStateFor(b, orig) match {
-        case Ice(Some(player)) => player
-        case _ => error("Cannot start a move from a location with no player")
+        case Ice(Some(player)) => Some(player)
+        case _ => None
       }
     }
 
@@ -82,8 +85,11 @@ object FishGame {
       }
     }
 
-    private def posStateAfterMove(board:Board, orig:Position, dest:Position, player:Player) : Map[Position, PositionState] = {
-      board.positionStates + ((orig, NoIce)) + ((dest, Ice(Some(player))))
+    private def posStateAfterMove(board:Board, orig:Position, dest:Position, playerO:Option[Player]) : Map[Position, PositionState] = {
+      playerO match {
+        case Some(player) => board.positionStates + ((orig, NoIce)) + ((dest, Ice(Some(player))))
+        case None => error("Cannot start a move from a location with no player")
+      }
     }
   }
 
@@ -132,7 +138,11 @@ object FishGame {
   def main(args: Array[String]) {
     val b = initBoard()
     say("initial board:", b)
+    print("penguins for p1:" + b.positionsForPlayer(FirstPlayer))
+    print("penguins for p2:" + b.positionsForPlayer(SecondPlayer))
+
     print(allPossibleMoves(b, Position(1,1)))
     say("after first move:", Board.makeMove(b, Position(1,1), Position(4,1)))
+
   }
 }
