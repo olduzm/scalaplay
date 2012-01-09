@@ -8,14 +8,18 @@ object FishGame {
     override def toString = "[" + x + "," + y + "]"
   }
 
-  abstract sealed case class Player()
+  abstract sealed case class Player() {
+    def nextPlayer : Player
+  }
 
   case object FirstPlayer extends Player {
     override def toString = " A"
+    override def nextPlayer = SecondPlayer
   }
 
   case object SecondPlayer extends Player {
     override def toString = " B"
+    override def nextPlayer = FirstPlayer
   }
 
   sealed abstract case class PositionState()
@@ -122,7 +126,7 @@ object FishGame {
 
   def onDirection(b: Board, pos: Position, d: Direction): List[Option[Position]] =
     nextPositionOnDirection(b, pos, d) match {
-      case Some(nextP) if isPositionValid(b, nextP) => Some(nextP) :: onDirection(b, nextP, d)
+      case Some(nextP) if isPositionValid(b, nextP) && Board.isFree (b, nextP) => Some(nextP) :: onDirection(b, nextP, d)
       case _ => Nil
     }
 
@@ -144,34 +148,57 @@ object FishGame {
     Console println msg
   }
 
-  def randomMove(b: Board, p: Player): (Position, Position) = {
+  def randomMove(b: Board, p: Player): Option[(Position, Position)] = {
     val allPossibleMovesForPlayer: List[(Position, Position)] =
       b.positionsForPlayer(FirstPlayer).map((orig) => allPossibleMoves(b, orig).map((orig, _))).flatten
     pickRandom(allPossibleMovesForPlayer)
   }
 
-  def pickRandom[T](xs: List[T]): T = {
-    xs(new Random().nextInt(xs.size))
+  def pickRandom[T](xs: List[T]): Option[T] = {
+    xs match {
+      case Nil => None
+      case _ => Some(xs(new Random().nextInt(xs.size)))
+    }
+  }
+
+  def autoplay(b:Board, currentPlayer:Player, f1:(Board, Player) => Option[(Position, Position)], f2:(Board, Player) => Option[(Position, Position)]) {
+    say("current board:", b)
+    f1(b, currentPlayer) match {
+      case None => say("Game is FINISHED, " + currentPlayer.nextPlayer + " won!", b)
+      case Some(move) => autoplay(Board.makeMove(b, move._1, move._2), currentPlayer.nextPlayer, f2, f1)
+    }
+  }
+
+  def allPossibleMovesForPlayer(b: FishGame.Board, p:Player): List[FishGame.Board] = {
+    b.positionsForPlayer(p).map(
+      (orig) => allPossibleMoves(b, orig).map(Board.makeMove(b, orig, _))).flatten
   }
 
   def main(args: Array[String]) {
     val b = initBoard()
     say("initial board:", b)
-    print("penguins for p1:" + b.positionsForPlayer(FirstPlayer))
-    print("penguins for p2:" + b.positionsForPlayer(SecondPlayer))
 
-    print(allPossibleMoves(b, Position(1, 1)))
-    say("after a move:", Board.makeMove(b, Position(1, 1), Position(4, 1)))
+    autoplay(b, FirstPlayer, randomMove, randomMove)
 
-    print("all moves for p1:\n" +
-      b.positionsForPlayer(FirstPlayer).map(
-        (orig) =>
-          allPossibleMoves(b, orig).map(Board.makeMove(b, orig, _))).flatten.mkString("\n\n")
-    )
+    def callASingleMove {
+      print("penguins for p1:" + b.positionsForPlayer(FirstPlayer))
+      print("penguins for p2:" + b.positionsForPlayer(SecondPlayer))
 
-    print("a random move for p1:\n" +
-      randomMove (b, FirstPlayer)
-    )
+      print(allPossibleMoves(b, Position(1, 1)))
+      say("after a move:", Board.makeMove(b, Position(1, 1), Position(4, 1)))
+    }
+
+    def callAllMoves {
+      print("all moves for p1:\n" +
+        allPossibleMovesForPlayer(b, FirstPlayer).mkString("\n\n")
+      )
+    }
+
+    def callRandomMove {
+      print("a random move for p1:\n" +
+        randomMove(b, FirstPlayer)
+      )
+    }
 
   }
 }
