@@ -1,12 +1,15 @@
+import collection.immutable.List
 import scala.Predef._
+import util.Random
 
 object FishGame {
 
-  case class Position(x: Int, y:Int) {
+  case class Position(x: Int, y: Int) {
     override def toString = "[" + x + "," + y + "]"
   }
 
   abstract sealed case class Player()
+
   case object FirstPlayer extends Player {
     override def toString = " A"
   }
@@ -16,46 +19,52 @@ object FishGame {
   }
 
   sealed abstract case class PositionState()
-  case class Ice(player:Option[Player]) extends PositionState {
+
+  case class Ice(player: Option[Player]) extends PositionState {
     override def toString = player match {
       case Some(p) => p toString
       case None => " #"
     }
   }
+
   case object NoIce extends PositionState {
     override def toString = " ."
   }
 
   abstract sealed case class Direction()
+
   case object N extends Direction
+
   case object S extends Direction
+
   case object E extends Direction
+
   case object W extends Direction
 
-  case class Board(w:Int, h:Int, positionStates:Map[Position, PositionState]) {
-    override def toString = positionStates.toList.sortBy(t=>(t._1.x + t._1.y * h)).map(_._2)
+  case class Board(w: Int, h: Int, positionStates: Map[Position, PositionState]) {
+    override def toString = positionStates.toList.sortBy(t => (t._1.x + t._1.y * h)).map(_._2)
       .grouped(w).map(_.mkString)
       .mkString("\n")
 
-    def positionsForPlayer(player:Player) : List[Position] =
+    def positionsForPlayer(player: Player): List[Position] =
       positionStates.toList.filter((pair) => Board.playerAt(this, pair._1) == Some(player)).map(_._1)
   }
 
   object Board {
-    def create(w:Int, h:Int, players:List[(Player, List[Position])]) : Board = {
-      val allPositions = for (x <- 1 until w+1; y <- 1 until h+1) yield Position(x, y)
-      val initialMap:Map[Position, PositionState] = allPositions.map((_, Ice(None))).toMap
+    def create(w: Int, h: Int, players: List[(Player, List[Position])]): Board = {
+      val allPositions = for (x <- 1 until w + 1; y <- 1 until h + 1) yield Position(x, y)
+      val initialMap: Map[Position, PositionState] = allPositions.map((_, Ice(None))).toMap
       Board(w, h, players.foldLeft(initialMap)(addPenguinsToMap(_, _)))
     }
 
-    def playerAt(b:Board, orig:Position) : Option[Player] = {
+    def playerAt(b: Board, orig: Position): Option[Player] = {
       posStateFor(b, orig) match {
         case Ice(Some(player)) => Some(player)
         case _ => None
       }
     }
 
-    def makeMove(b:Board, orig:Position, dest:Position) : Board = {
+    def makeMove(b: Board, orig: Position, dest: Position): Board = {
       if (isFree(b, dest))
         Board(b.w, b.h, posStateAfterMove(b, orig, dest, playerAt(b, orig)))
       else
@@ -63,18 +72,18 @@ object FishGame {
     }
 
 
-    def isFree(b:Board, pos:Position) : Boolean =
+    def isFree(b: Board, pos: Position): Boolean =
       posStateFor(b, pos) match {
         case Ice(None) => true
         case _ => false
       }
 
-    private def addPenguinsToMap(m:Map[Position, PositionState], item:(Player, List[Position])) : Map[Position, PositionState] = {
-      val positions : List[Position] = item._2
+    private def addPenguinsToMap(m: Map[Position, PositionState], item: (Player, List[Position])): Map[Position, PositionState] = {
+      val positions: List[Position] = item._2
       positions.foldLeft(m)(addSinglePenguinToMap(_, item._1, _))
     }
 
-    private def addSinglePenguinToMap(m:Map[Position, PositionState], player:Player, pos:Position) : Map[Position, PositionState] = {
+    private def addSinglePenguinToMap(m: Map[Position, PositionState], player: Player, pos: Position): Map[Position, PositionState] = {
       m + ((pos, Ice(Some(player))))
     }
 
@@ -85,7 +94,7 @@ object FishGame {
       }
     }
 
-    private def posStateAfterMove(board:Board, orig:Position, dest:Position, playerO:Option[Player]) : Map[Position, PositionState] = {
+    private def posStateAfterMove(board: Board, orig: Position, dest: Position, playerO: Option[Player]): Map[Position, PositionState] = {
       playerO match {
         case Some(player) => board.positionStates + ((orig, NoIce)) + ((dest, Ice(Some(player))))
         case None => error("Cannot start a move from a location with no player")
@@ -93,17 +102,17 @@ object FishGame {
     }
   }
 
-  def isPositionValid(b:Board, p:Position) : Boolean =
+  def isPositionValid(b: Board, p: Position): Boolean =
     p.x > 0 && p.x <= b.w &&
-    p.y > 0 && p.y <= b.h
+      p.y > 0 && p.y <= b.h
 
-  def tryPosition(b:Board, x:Int, y:Int):Option[Position] =
+  def tryPosition(b: Board, x: Int, y: Int): Option[Position] =
     Position(x, y) match {
       case p if isPositionValid(b, p) => Some(p)
       case _ => None
     }
 
-  def nextPositionOnDirection(b:Board, pos:Position, d:Direction) : Option[Position] =
+  def nextPositionOnDirection(b: Board, pos: Position, d: Direction): Option[Position] =
     d match {
       case N => tryPosition(b, pos.x, pos.y - 1)
       case S => tryPosition(b, pos.x, pos.y + 1)
@@ -111,13 +120,13 @@ object FishGame {
       case W => tryPosition(b, pos.x - 1, pos.y)
     }
 
-  def onDirection(b:Board, pos:Position, d:Direction) : List[Option[Position]] =
+  def onDirection(b: Board, pos: Position, d: Direction): List[Option[Position]] =
     nextPositionOnDirection(b, pos, d) match {
-      case Some(nextP) if isPositionValid(b, nextP) => Some(nextP)::onDirection (b, nextP, d)
+      case Some(nextP) if isPositionValid(b, nextP) => Some(nextP) :: onDirection(b, nextP, d)
       case _ => Nil
     }
 
-  def allPossibleMoves(b:Board, pos:Position) : List[Position] =
+  def allPossibleMoves(b: Board, pos: Position): List[Position] =
     List(N, S, E, W).map(onDirection(b, pos, _)).flatten.flatten
 
   def initBoard() = {
@@ -127,12 +136,22 @@ object FishGame {
     )
   }
 
-  def say(msg:String, board:Board) {
+  def say(msg: String, board: Board) {
     Console println msg + "\n" + board
   }
 
-  def print(msg:Any) {
+  def print(msg: Any) {
     Console println msg
+  }
+
+  def randomMove(b: Board, p: Player): (Position, Position) = {
+    val allPossibleMovesForPlayer: List[(Position, Position)] =
+      b.positionsForPlayer(FirstPlayer).map((orig) => allPossibleMoves(b, orig).map((orig, _))).flatten
+    pickRandom(allPossibleMovesForPlayer)
+  }
+
+  def pickRandom[T](xs: List[T]): T = {
+    xs(new Random().nextInt(xs.size))
   }
 
   def main(args: Array[String]) {
@@ -141,8 +160,18 @@ object FishGame {
     print("penguins for p1:" + b.positionsForPlayer(FirstPlayer))
     print("penguins for p2:" + b.positionsForPlayer(SecondPlayer))
 
-    print(allPossibleMoves(b, Position(1,1)))
-    say("after first move:", Board.makeMove(b, Position(1,1), Position(4,1)))
+    print(allPossibleMoves(b, Position(1, 1)))
+    say("after a move:", Board.makeMove(b, Position(1, 1), Position(4, 1)))
+
+    print("all moves for p1:\n" +
+      b.positionsForPlayer(FirstPlayer).map(
+        (orig) =>
+          allPossibleMoves(b, orig).map(Board.makeMove(b, orig, _))).flatten.mkString("\n\n")
+    )
+
+    print("a random move for p1:\n" +
+      randomMove (b, FirstPlayer)
+    )
 
   }
 }
